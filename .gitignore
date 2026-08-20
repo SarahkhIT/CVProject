@@ -1,0 +1,69 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+build/
+dist/
+*.egg
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Virtual environments ---
+venv/
+env/
+.venv/
+.env
+
+# --- Secrets / credentials ---
+.env
+*.key
+roboflow_key.txt
+
+# --- Datasets (downloaded from Roboflow at runtime) ---
+/dataset/
+/datasets/
+*-yolov8/
+data.yaml
+
+# --- Colab working directories ---
+/content/
+samples/
+runs/
+waste_seg_runs/
+
+# --- Model weights & exports (large binaries, regenerate via training/export) ---
+*.pt
+*.onnx
+*.engine
+*.torchscript
+*.tflite
+*.mlmodel
+*.pb
+best.pt
+best.onnx
+
+# --- Video / media ---
+*.mp4
+*.avi
+*.mov
+input_video.mp4
+output_sorted.mp4
+
+# --- Images (sample/inference outputs) ---
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+!docs/**/*.jpg
+
+# --- Logs & metrics ---
+*.log
+wandb/
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
