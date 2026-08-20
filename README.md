@@ -2,15 +2,11 @@
 
 ### AI-powered waste detection, segmentation & real-time sorting analytics — built with Ultralytics YOLO
 
-
-
 ---
 
 ## The Problem
 
-Every day, tons of recyclable material end up in the wrong bin simply because sorting it by hand is slow, inconsistent, and honestly... nobody's favorite job. **Smart Waste Sorting** puts computer vision to work instead — spotting, segmenting, tracking, and counting waste items in real footage from an actual material recovery facility.
-
-No stock photos. No toy examples. Real conveyor belt, real trash, real numbers.
+Every day, tons of recyclable material end up in the wrong bin because sorting it by hand is slow, inconsistent, and expensive to scale. **Smart Waste Sorting** applies computer vision instead — detecting, segmenting, tracking, and counting waste items directly from video, as a step toward automated sorting on a real conveyor line.
 
 ---
 
@@ -18,11 +14,12 @@ No stock photos. No toy examples. Real conveyor belt, real trash, real numbers.
 
 | Capability | Description |
 |---|---|
-| **Detection & Segmentation** | Pixel-level instance segmentation — not just boxes, actual object outlines |
-| **Custom-Trained Model** | Fine-tuned YOLO on a real solid-waste dataset (5 waste categories) |
-| **Video Analytics** | Object tracking + region-based counting on live conveyor-belt footage |
-| **Model Evaluation** | mAP, precision/recall per class, with honest interpretation of where the model struggles |
-| **Zero-Setup Reproducibility** | Anyone can open the notebook, hit *Run All*, and watch it work — video and weights download automatically |
+| **Detection & Segmentation** | Pixel-level instance segmentation — actual object outlines, not just boxes |
+| **Custom-Trained Model** | Fine-tuned YOLO on a real solid-waste dataset (9 waste categories) |
+| **Video Analytics** | Object tracking + region-based counting over real video footage |
+| **Model Evaluation** | mAP, precision/recall per class, with an honest interpretation of where the model struggles |
+| **Deployment-Ready Export** | Model exported to ONNX for cross-platform, edge-friendly inference |
+| **Reproducible End-to-End** | Open the notebook, run it top to bottom — sample images, video, and model weights are fetched automatically |
 
 ---
 
@@ -32,16 +29,14 @@ No stock photos. No toy examples. Real conveyor belt, real trash, real numbers.
 - **OpenCV** — video I/O and frame-by-frame processing
 - **Roboflow** — dataset hosting & versioning
 - **yt-dlp** — automated video sourcing
+- **ONNX** — model export for deployment
 - **Google Colab** — training & experimentation environment
-
 
 ---
 
 ## The Dataset
 
-Trained on the **[Solid Waste dataset](https://universe.roboflow.com/xaviervape-old/solid-waste-ajntx)** via Roboflow Universe, covering 5 real-world waste categories:
-
-`General trash` · `Glass` · `Paper pack` · `Plastic bag` · `Plastic`
+Trained on the **[Solid Waste dataset](https://universe.roboflow.com/xaviervape-old/solid-waste-ajntx)** via Roboflow Universe — 9 waste categories, 113 training images and 10 validation images. Class representation is uneven (e.g. Glass has far more labeled instances than General Trash or Plastic Bag), which directly shapes the evaluation results below.
 
 ---
 
@@ -50,40 +45,46 @@ Trained on the **[Solid Waste dataset](https://universe.roboflow.com/xaviervape-
 | Setting | Value |
 |---|---|
 | Base model | `yolov8n-seg.pt` |
-| Epochs | 60 (early-stopped at 54) |
+| Epochs | 60 (early-stopped at 54, best checkpoint at 39) |
 | Image size | 640×640 |
 | Batch size | 16 |
 | Frozen layers | 10 |
+
+**Overall result:** mAP50 = 0.319 / mAP50-95 = 0.228 (box), mAP50 = 0.309 / mAP50-95 = 0.201 (mask).
 
 ---
 
 ## Evaluation — The Honest Version
 
-We didn't just run `model.val()` and call it a day — here's what the numbers actually mean:
+We didn't just run `model.val()` and call it done — here's what the numbers actually mean:
 
-| Class | mAP50 | What's happening |
-|---|---|---|
-| Glass | ~0.67 | Best performer — plenty of training examples |
-| Plastic | ~0.54 | Solid, despite fewer samples |
-| Paper pack | ~0.32 | Room to grow |
-| General trash | ~0.02 | Struggles hard — only 3 training instances |
-| Plastic bag | ~0.02 | Same story — 5 training instances, mostly missed (false negatives) |
+| Class | Validation instances | mAP50 | What's happening |
+|---|---|---|---|
+| Glass | 45 | ~0.69 | Best performer — plenty of training examples |
+| Plastic | 4 | ~0.55 | Strong despite few samples |
+| General trash | 2–5 | ~0.02 | Fails hard — too few examples to learn from |
+| Plastic bag | 2–5 | ~0.02 | Same story — mostly missed (false negatives) |
 
-**Takeaway:** the model is only as good as the data behind each class. Glass and Plastic had enough examples to learn real patterns; General trash and Plastic bag didn't — that's a data problem, not an architecture problem, and the fix is more (and more varied) labeled examples for those categories.
+**Takeaway:** this isn't classic overfitting (train loss down, val loss up) — it's underfitting driven by class imbalance. With only 113 training images spread across 9 classes, well-represented classes like Glass learned real patterns, while minority classes simply didn't have enough examples. More (and more varied) labeled data for the weak classes is the fix, not a different architecture.
 
-Confidence threshold: `0.25` · IoU threshold: `0.7` (Ultralytics defaults, chosen to balance catching true detections without flooding false positives).
+Confidence threshold: `0.25` · IoU threshold: `0.70`, chosen using Ultralytics' defaults and validated by comparing precision/recall across multiple thresholds (0.15–0.50) in the evaluation section.
 
 ---
 
 ## Real-World Video Analytics
 
-This is where it gets fun. Instead of running inference on a single image and calling it done, the pipeline:
+Rather than stopping at single-image inference, the pipeline also:
 
-1. Pulls real conveyor-belt footage from a recycling facility (auto-downloaded, no manual steps)
-2. Tracks each waste item frame-by-frame with a persistent ID
-3. Counts items as they cross a defined "sorting line"
-4. Saves the fully annotated video as proof it actually ran
+1. Downloads real video footage automatically (via `yt-dlp`, no manual steps)
+2. Tracks each waste item frame-by-frame using Ultralytics' `ObjectCounter`
+3. Counts items as they cross a defined region/line
+4. Saves the fully annotated output video as evidence it actually ran
 
+---
+
+## Deployment & Export
+
+The trained model is exported to **ONNX** for cross-platform, hardware-independent inference (CPU, GPU, or edge devices), with graph-level optimizations that improve inference speed — important for a waste-sorting system that may eventually need to run in real time on lower-power hardware. The exported model is verified with a test inference pass before being considered deployment-ready.
 
 ---
 
@@ -91,17 +92,17 @@ This is where it gets fun. Instead of running inference on a single image and ca
 
 ### 1. Install dependencies
 ```bash
-pip install ultralytics opencv-python yt-dlp
+pip install ultralytics opencv-python yt-dlp roboflow
 ```
 
 ### 2. Open the notebook
 Open `smart_waste_sorting.ipynb` in Google Colab or Jupyter.
 
 ### 3. Run it
-Hit **Run All**. That's genuinely it — the video and trained model weights download automatically from this repo, no manual file uploads required.
+Run all cells top to bottom. Sample images, video, and trained model weights are fetched automatically — no manual file uploads required. A Roboflow API key (`ROBOFLOW_KEY`) is needed only if you want to re-run training from scratch.
 
 ### 4. Check the output
-Look for `output_sorted.mp4` and the per-class count printed at the end of the video analytics section.
+Look for `output_sorted.mp4` (annotated video) and the per-class detection counts printed at the end of the video analytics section. Trained weights (`best.pt`) and the exported ONNX model are generated by the notebook and are not tracked in this repository — see Releases or the notebook's download cell to obtain them.
 
 ---
 
@@ -113,8 +114,7 @@ This project was built as the capstone for:
 *SDAIA Academy* — delivered via DAICO
 
 *Trainer:* Mohammad Albeladi
-
-*Session Dates:* 16th of August, 2026 - 20th of August, 2026
+*Session Dates:* 16th of August, 2026 – 20th of August, 2026
 
 🔗 [github.com/SDAIAAcademy](https://github.com/SDAIAAcademy)
 
@@ -124,18 +124,16 @@ This project was built as the capstone for:
 
 | Name | Contribution |
 |---|---|
-| _Sarah Al Saed_ | _Real-World Solution & Video Analytics_ |
-| _Noura Alfaadhel_ | _Core Vision Task & Interface_ |
-| _Ghala Alharbi_ | _Custom Data & Training_ |
-| _Sarah Alkhudhiri_ | _Model Evaluation_ |
-| _Raneem Alsheddi_ | _Deployment & Export_ | 
+| *Sarah Al Saed* | *Real-World Solution & Video Analytics* |
+| *Noura Alfaadhel* | *Core Vision Task & Interface* |
+| *Ghala Alharbi* | *Custom Data & Training* |
+| *Sarah Alkhudhiri* | *Model Evaluation* |
+| *Raneem Alsheddi* | *Deployment & Export* |
 
 ---
 
 ## What's Next
 
-- Export to ONNX/TFLite for edge deployment on an actual sorting line
-- Wrap it in a small Streamlit dashboard for live monitoring
-- Grow the dataset for the underperforming classes (General trash, Plastic bag)
-
----
+- Grow the dataset for underperforming classes (General trash, Plastic bag)
+- Wrap the pipeline in a small Streamlit dashboard for live monitoring
+- Benchmark the ONNX export on actual edge hardware for a real sorting line
