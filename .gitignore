@@ -33,16 +33,14 @@ samples/
 runs/
 waste_seg_runs/
 
-# --- Model weights & exports (large binaries, regenerate via training/export) ---
-*.pt
-*.onnx
+# --- Model weights & exports ---
+# NOTE: best.pt and best.onnx are intentionally committed (used directly by the
+# notebook for zero-setup reproducibility). Other export formats are still ignored.
 *.engine
 *.torchscript
 *.tflite
 *.mlmodel
 *.pb
-best.pt
-best.onnx
 
 # --- Video / media ---
 *.mp4
