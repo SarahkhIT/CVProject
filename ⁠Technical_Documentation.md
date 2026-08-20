@@ -1,184 +1,176 @@
 # Technical Documentation
-## Solid Waste Instance Segmentation & Analysis Pipeline
+## Smart Waste Sorting — Instance Segmentation, Video Analytics & Deployment Pipeline
 
 ---
 
 # 1. System Overview
 
-This project implements an end-to-end computer vision and machine learning pipeline designed for automated solid waste detection, classification, and instance segmentation. 
+This project implements an end-to-end computer vision pipeline for automated solid waste detection, classification, and instance segmentation, built on the Ultralytics YOLO ecosystem.
 
-The system utilizes an object detection and segmentation framework built on top of the Ultralytics YOLO ecosystem. It ingests visual data, processes dataset configurations, trains instance segmentation models across isolated execution runs, tracks iteration performance metrics, and extracts quantitative bounding box coordinates and segmentation masks for waste identification tasks.
+The pipeline covers four stages: (1) baseline inference with a pretrained YOLO segmentation model, (2) fine-tuning on a custom waste dataset, (3) real-world video analytics — tracking and counting waste items in footage, and (4) exporting the trained model to ONNX for deployment.
+
+**Dataset used:** [Solid Waste dataset](https://universe.roboflow.com/xaviervape-old/solid-waste-ajntx) via Roboflow Universe. The notebook pulls `project.version(1)`, a fixed snapshot with **9 waste categories, 113 training images, and 10 validation images**. (The live Roboflow project has since grown to 16 classes / 979 images, but this snapshot — not the current larger version — is what was actually used for training and evaluation in this submission.)
+
+**Base model:** `yolov8n-seg.pt`, fine-tuned for instance segmentation.
 
 ---
 
 # 2. Architecture
 
-The architecture follows a modular machine learning pipeline structure executed in a GPU-accelerated runtime context.
-
 ```
-          Visual Data Input
+          Sample Images / Video Input
                   │
                   ▼
-      Dataset Configuration (YAML)
+      Dataset Configuration (Roboflow data.yaml)
                   │
                   ▼
-        YOLO Model Initialization
+        YOLO Model Initialization (yolov8n-seg.pt)
                   │
                   ▼
-   Segmentation Training & Iteration
+   Segmentation Training & Iteration (model.train)
                   │
                   ▼
-      Metrics Logging (results.csv)
+      Evaluation (model.val — mAP, precision/recall)
                   │
-                  ▼
-   Inference & Post-Processing (Boxes/Masks)
+        ┌─────────┴─────────┐
+        ▼                   ▼
+  Video Analytics      Deployment & Export
+ (tracking + counting    (ONNX export +
+  via ObjectCounter)      test inference)
 ```
 
 ---
 
 # 3. Pipeline Modules & Components
 
-## Component 1 — Dataset Module (`Solid-Waste-1`)
+## Component 1 — Dataset Module
 
 **Purpose**
-
-Defines and parses dataset parameters, image paths, label paths, and class definitions required for waste segmentation.
+Downloads and parses the Roboflow "Solid Waste" dataset (version 1: 9 classes, 113 train / 10 val images), producing the class list and image/label paths used for training and validation.
 
 **Input**
-
-- Image assets and target mask labels
+- Roboflow API key (`ROBOFLOW_KEY`), workspace `xaviervape-old`, project `solid-waste-ajntx`
 
 **Output**
-
-- `Solid-Waste-1/data.yaml` configuration mapping
+- `<dataset.location>/data.yaml` — class definitions and image/label paths
 
 ---
 
-## Component 2 — Model Engine (`YOLO`)
+## Component 2 — Model Engine (YOLO)
 
 **Purpose**
-
-Handles initial weights loading, deep learning architecture setup, loss function computation, and execution of forward/backward passes during training.
+Loads model weights, runs training (forward/backward passes), and performs inference for both single-image and batch prediction.
 
 **Frameworks**
-
-- PyTorch (`torch` v2.11.0+cu128)
-- Ultralytics YOLO primitives
-- Hardware acceleration via NVIDIA CUDA
-
----
-
-## Component 3 — Training & Artifact Tracker (`runs/segment/`)
-
-**Purpose**
-
-Isolates individual experimental runs, saves hyperparameter states, and logs epoch-by-epoch training and validation loss values.
-
-**Outputs**
-
-- Run configuration: `args.yaml`
-- Execution logs: `results.csv`
-- Saved model checkpoints
+- Ultralytics YOLO (`yolov8n-seg.pt` for training, `yolo11n-seg.pt` for the baseline inference demo)
+- PyTorch (backing tensor computation)
+- Google Colab GPU runtime
 
 ---
 
-## Component 4 — Inference & Prediction Parser
+## Component 3 — Training & Evaluation
 
 **Purpose**
+Fine-tunes the segmentation model on the custom dataset, then validates it with `model.val()`, reporting box/mask mAP50, mAP50-95, precision, and recall — including a sweep across multiple confidence thresholds (0.15–0.50) at IoU 0.70.
 
-Runs trained models over target test assets, generating predictions wrapped inside `Results` objects (`r`) to extract bounding boxes (`box`) and spatial segmentation masks.
+**Key settings**
+- Epochs: 60 (early-stopped at 54, best checkpoint at epoch 39)
+- Image size: 640×640, batch size: 16, first 10 backbone layers frozen
+
+**Result**
+mAP50 = 0.319 / mAP50-95 = 0.228 (box); mAP50 = 0.309 / mAP50-95 = 0.201 (mask). Performance is strongly class-imbalanced: Glass (45 validation instances) reached mAP50 ≈ 0.69, while General Trash and Plastic Bag (2–5 instances each) scored near zero — a data-scarcity issue, not an architecture issue.
+
+---
+
+## Component 4 — Video Analytics
+
+**Purpose**
+Applies the trained model to a real video stream rather than static images, demonstrating the pipeline in a real-world sorting/counting context.
+
+**Flow**
+1. Downloads video via `yt-dlp` from a specified `VIDEO_URL`
+2. Downloads model weights (`best.pt`) from the repo's hosted release
+3. Runs Ultralytics' `ObjectCounter` over the video with OpenCV handling frame capture, processing, and output writing
+4. Counts waste items as they cross a defined counting region
+5. Writes the fully annotated video to `output_sorted.mp4`
+
+---
+
+## Component 5 — Deployment & Export
+
+**Purpose**
+Exports the trained model to ONNX for cross-platform, hardware-independent inference (CPU, GPU, or edge devices), and verifies the export by re-running inference with the ONNX model.
+
+**Status:** completed in this submission — `model.export(format="onnx")` produces `best.onnx`, which is loaded and re-tested against the sample images to confirm the export is functional.
 
 ---
 
 # 4. State Management & Run Isolation
 
-Experimental runs are partitioned into dedicated directories under the `runs/` tracking tree to preserve model history and configuration integrity.
-
-Key tracking directories:
-
-```
-runs/segment/waste_seg_runs/solid_waste_seg_v1/
-runs/segment/waste_seg_runs/solid_waste_seg_v1-2/
-```
-
-Inside each run directory, the pipeline maintains:
-
-- `args.yaml`: Stores exact hyperparameters, image size, learning rates, and target batch sizes.
-- `results.csv`: Tracks continuous performance metrics including precision, recall, mAP50, and mAP50-95 across training epochs.
+Training runs are isolated under `waste_seg_runs/` (Colab working directory `runs/segment/waste_seg_runs/solid_waste_seg_v1/`) to preserve configuration and metrics per run. Each run directory contains model checkpoints and validation metrics generated by `model.train()` and `model.val()`.
 
 ---
 
 # 5. Technical Decisions
 
-- **YOLO Segmentation Framework:** Selected for state-of-the-art balance between real-time inference speed and accurate pixel-level spatial masks required for complex waste items.
-- **PyTorch & CUDA Backend:** Utilizes `torch==2.11.0+cu128` to ensure compute efficiency and tensor acceleration on CUDA-enabled GPU hardware.
-- **YAML-Based Configs:** Decouples dataset paths and model execution settings from code logic, allowing continuous iteration on data splits without source code modification.
-- **Modular Output Extraction:** Decouples raw predictions into dedicated `Results` and `Boxes` objects (`r`, `box`) to streamline downstream analytics and spatial overlay rendering.
+- **YOLO segmentation over plain detection:** chosen because pixel-level masks are more useful than bounding boxes for irregularly shaped waste items (e.g. crumpled plastic bags, broken glass).
+- **Frozen backbone layers (first 10):** speeds up fine-tuning and reduces overfitting risk on a small (113-image) dataset by preserving pretrained low-level features.
+- **ONNX for deployment:** chosen over other export formats for broad cross-platform compatibility and graph-level inference optimizations, without committing to a specific edge runtime.
+- **`yt-dlp` for video sourcing:** allows the video-analytics stage to run end-to-end without manual file uploads, supporting reproducibility.
 
 ---
 
 # 6. Technologies Used
 
-| Component | Technology | Version / Spec |
-|------------|------------|----------------|
-| Operating Language | Python | 3.12.13 |
-| Deep Learning Framework | PyTorch | 2.11.0+cu128 |
-| Vision Framework | Ultralytics YOLO | Native Class API |
-| Training Accelerator | Accelerate | 1.14.0 |
-| Datasets Library | Datasets | 4.0.0 |
-| Model Fine-Tuning Support | PEFT | 0.20.0 |
-| Supporting AI Frameworks | LangChain / Transformers | 1.3.15 / 5.15.0 |
-| Execution Hardware | NVIDIA GPU | Tesla T4 |
+| Component | Technology |
+|---|---|
+| Language | Python (Google Colab runtime) |
+| Vision Framework | Ultralytics YOLO (`yolov8n-seg`, `yolo11n-seg`) |
+| Video Processing | OpenCV |
+| Dataset Hosting | Roboflow |
+| Video Sourcing | yt-dlp |
+| Deployment Format | ONNX |
+| Execution Hardware | Colab GPU runtime |
 
 ---
 
 # 7. Project Structure
 
 ```
-Solid-Waste-Segmentation/
-
-│── Solid-Waste-1/
-│   └── data.yaml
-│── runs/
-│   └── segment/
-│       └── waste_seg_runs/
-│           ├── solid_waste_seg_v1/
-│           │   ├── args.yaml
-│           │   └── results.csv
-│           └── solid_waste_seg_v1-2/
-│               ├── args.yaml
-│               └── results.csv
-│── project_notebook.ipynb
-│── requirements.txt
+CVProject/
+│── smart_waste_sorting.ipynb      # Main notebook (all 6 deliverables)
+│── best.pt                        # Trained model weights
 │── README.md
+│── Technical_Documentation.md
+│── .gitignore
 ```
 
 ---
 
 # 8. Execution Flow
 
-1. **Environment Initialization:** Load Python dependencies and establish CUDA connection with the Tesla T4 GPU.
-2. **Data Pipeline Registration:** Read `Solid-Waste-1/data.yaml` to register class boundaries and data paths.
-3. **Model Instantiation:** Load the target YOLO segmentation model class in memory.
-4. **Training Execution:** Run multi-epoch training pass, creating output logs in `runs/segment/waste_seg_runs/`.
-5. **Metric Logging:** Append training loss, validation loss, and precision metrics into `results.csv`.
-6. **Inference & Mask Extraction:** Output predicted bounding boxes (`box`) and visual segmentation contours (`r`).
+1. **Environment Initialization:** Install dependencies (`ultralytics`, `opencv-python`, `yt-dlp`, `roboflow`) and connect to the Colab GPU runtime.
+2. **Baseline Inference:** Run a pretrained `yolo11n-seg.pt` model over sample images to validate the pipeline works end-to-end.
+3. **Data Pipeline Registration:** Download the Roboflow dataset (version 1) and read its `data.yaml`.
+4. **Training Execution:** Fine-tune `yolov8n-seg.pt` for up to 60 epochs, with metrics and checkpoints logged per run.
+5. **Evaluation:** Run `model.val()`, sweep confidence thresholds, and interpret per-class results, including the confusion matrix.
+6. **Video Analytics:** Download real video via `yt-dlp`, run `ObjectCounter` over it with OpenCV, and save the annotated output.
+7. **Deployment & Export:** Export the trained model to ONNX and verify it with a test inference pass.
 
 ---
 
 # 9. Production Readiness
 
-- **Modular Directory Organization:** Isolated training runs avoid configuration overwrites and provide reproducible metrics.
-- **GPU Acceleration:** Optimized for low-latency instance segmentation pipelines using CUDA bindings.
-- **Auditability:** Complete snapshot of hyperparameters preserved per experiment via `args.yaml`.
-- **Hardware Agnostic Data Loading:** Standardized dataset specifications in YAML format.
+- **Modular pipeline stages:** each deliverable (inference, training, video analytics, evaluation, export) is a distinct, independently re-runnable section of the notebook.
+- **Reproducibility:** sample images, video, and model weights are fetched automatically at runtime — no manual file staging required.
+- **Deployment-ready export:** the model is already exported to ONNX and verified, not just planned.
+- **Known limitation:** the training dataset (113 images, 9 classes) is small and imbalanced, so minority-class performance is currently unreliable for production use.
 
 ---
 
 # 10. Future Improvements
 
-- Automated deployment of the segmentation model behind a REST API (FastAPI/Flask).
-- Edge device export (TensorRT or ONNX format) for real-time robotic or conveyor belt sorting.
-- Real-time video stream processing and counting dashboard.
-- Integration with cloud storage (S3 / GCP Buckets) for continuous dataset logging and auto-retraining.
-
+- Retrain on the current, larger version of the Roboflow dataset (16 classes, 979 images) instead of the original 9-class snapshot (`version(1)`).
+- Grow labeled examples for underperforming classes (General Trash, Plastic Bag) to address class imbalance.
+- Serve the exported ONNX model behind a small app (e.g. Streamlit or FastAPI) for live monitoring.
+- Benchmark the ONNX export on real edge hardware for an actual conveyor-line deployment.
