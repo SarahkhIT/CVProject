@@ -120,11 +120,11 @@ This project was built as the capstone for:
 
 | Name | Contribution |
 |---|---|
-| _[Sarah Al Saed]_ | _[Real-World Solution & Video Analytics]_ |
-| _[Noura Alfaadhel]_ | _[Core Vision Task & Interface]_ |
-| _[Ghala Alharbi]_ | _[Custom Data & Training]_ |
-| _[Sarah Alkhudhiri]_ | _[Model Evaluation]_ |
-| _[Raneem Alsheddi]_ | _[Deployment & Export]_ | 
+| _Sarah Al Saed_ | _Real-World Solution & Video Analytics_ |
+| _Noura Alfaadhel_ | _Core Vision Task & Interface_ |
+| _Ghala Alharbi_ | _Custom Data & Training_ |
+| _Sarah Alkhudhiri_ | _Model Evaluation_ |
+| _Raneem Alsheddi_ | _Deployment & Export_ | 
 
 ---
 
