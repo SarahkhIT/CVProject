@@ -15,7 +15,7 @@ Every day, tons of recyclable material end up in the wrong bin because sorting i
 | Capability | Description |
 |---|---|
 | **Detection & Segmentation** | Pixel-level instance segmentation — actual object outlines, not just boxes |
-| **Custom-Trained Model** | Fine-tuned YOLO on a real solid-waste dataset (9 waste categories) |
+| **Custom-Trained Model** | Fine-tuned YOLO on a real solid-waste dataset (9 waste categories, from a snapshot of a larger 16-class Roboflow project) |
 | **Video Analytics** | Object tracking + region-based counting over real video footage |
 | **Model Evaluation** | mAP, precision/recall per class, with an honest interpretation of where the model struggles |
 | **Deployment-Ready Export** | Model exported to ONNX for cross-platform, edge-friendly inference |
@@ -36,7 +36,9 @@ Every day, tons of recyclable material end up in the wrong bin because sorting i
 
 ## The Dataset
 
-Trained on the **[Solid Waste dataset](https://universe.roboflow.com/xaviervape-old/solid-waste-ajntx)** via Roboflow Universe — 9 waste categories, 113 training images and 10 validation images. Class representation is uneven (e.g. Glass has far more labeled instances than General Trash or Plastic Bag), which directly shapes the evaluation results below.
+Trained on the **[Solid Waste dataset](https://universe.roboflow.com/xaviervape-old/solid-waste-ajntx)** via Roboflow Universe. The notebook pulls `project.version(1)`, a fixed snapshot with **9 waste categories, 113 training images and 10 validation images**. Class representation within that snapshot is uneven (e.g. Glass has far more labeled instances than General Trash or Plastic Bag), which directly shapes the evaluation results below.
+
+**Note:** the live Roboflow project has since grown to **16 classes and 979 images**. Because `version(1)` is a frozen snapshot, the model in this repo was trained and evaluated only on the original 9-class version — not the current, larger dataset. Training on the full 16-class version is a natural next step (see "What's Next" below) but was not done for this submission.
 
 ---
 
@@ -64,6 +66,8 @@ We didn't just run `model.val()` and call it done — here's what the numbers ac
 | Plastic | 4 | ~0.55 | Strong despite few samples |
 | General trash | 2–5 | ~0.02 | Fails hard — too few examples to learn from |
 | Plastic bag | 2–5 | ~0.02 | Same story — mostly missed (false negatives) |
+
+*(Table shows the classes with the most representative results out of the 9 classes in the trained snapshot.)*
 
 **Takeaway:** this isn't classic overfitting (train loss down, val loss up) — it's underfitting driven by class imbalance. With only 113 training images spread across 9 classes, well-represented classes like Glass learned real patterns, while minority classes simply didn't have enough examples. More (and more varied) labeled data for the weak classes is the fix, not a different architecture.
 
@@ -134,6 +138,7 @@ This project was built as the capstone for:
 
 ## What's Next
 
-- Grow the dataset for underperforming classes (General trash, Plastic bag)
+- Retrain on the current, larger version of the dataset (16 classes, 979 images) instead of the original 9-class snapshot (`version(1)`)
+- Grow labeled examples for underperforming classes (General trash, Plastic bag)
 - Wrap the pipeline in a small Streamlit dashboard for live monitoring
 - Benchmark the ONNX export on actual edge hardware for a real sorting line
