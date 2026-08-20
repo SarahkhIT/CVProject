@@ -2,7 +2,7 @@
 
 ### AI-powered waste detection, segmentation & real-time sorting analytics — built with Ultralytics YOLO
 
-> *Because sorting trash shouldn't be a guessing game.* 🗑️➡️🤖➡️♻️
+> *Because sorting trash shouldn't be a guessing game.* 
 
 ---
 
