@@ -131,7 +131,7 @@ This project was built as the capstone for:
 | *Sarah Al Saed* | *Real-World Solution & Video Analytics* |
 | *Noura Alfaadhel* | *Core Vision Task & Interface* |
 | *Ghala Alharbi* | *Custom Data & Training* |
-| *Sarah Alkhudhiri* | *Model Evaluation* |
+| *Sarah Abdulaziz* | *Model Evaluation* |
 | *Raneem Alsheddi* | *Deployment & Export* |
 
 ---
