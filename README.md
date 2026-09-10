@@ -25,12 +25,12 @@ Every day, tons of recyclable material end up in the wrong bin because sorting i
 
 ## Tech Stack
 
-- **[Ultralytics YOLO](https://ultralytics.com/)** — detection, segmentation, tracking & counting
-- **OpenCV** — video I/O and frame-by-frame processing
-- **Roboflow** — dataset hosting & versioning
-- **yt-dlp** — automated video sourcing
-- **ONNX** — model export for deployment
-- **Google Colab** — training & experimentation environment
+- **[Ultralytics YOLO](https://ultralytics.com/)** : detection, segmentation, tracking & counting
+- **OpenCV** : video I/O and frame-by-frame processing
+- **Roboflow** : dataset hosting & versioning
+- **yt-dlp** : automated video sourcing
+- **ONNX** : model export for deployment
+- **Google Colab** : training & experimentation environment
 
 ---
 
