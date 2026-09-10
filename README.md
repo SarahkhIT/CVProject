@@ -118,6 +118,7 @@ This project was built as the capstone for:
 *SDAIA Academy* — delivered via DAICO
 
 *Trainer:* Mohammad Albeladi
+
 *Session Dates:* 16th of August, 2026 – 20th of August, 2026
 
 🔗 [github.com/SDAIAAcademy](https://github.com/SDAIAAcademy)
